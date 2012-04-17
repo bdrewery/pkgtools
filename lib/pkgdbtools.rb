@@ -42,6 +42,9 @@ module PkgDBTools
     end
   end
 
+  class DBError < StandardError
+  end
+
   def db_dir()
     unless @db_dir
       set_db_dir(nil)	# initialize with the default value
@@ -94,9 +97,16 @@ module PkgDBTools
 	next_driver = nil
 	require 'dbm'
       end
-    rescue LoadError
+
+      # Attempt to open the DB using this driver if it exists.
+      # This will ensure that if the db is in an older format, the driver will match the existing DB.
+      if FileTest.exist? @db_file
+        open_db_for_read!
+        close_db
+      end
+    rescue Exception
       if next_driver.nil?
-	raise DBError, "No driver is available!"
+	raise DBError, "No DB driver is available, or database is invalid.\nTo rebuild: rm #{@db_file} && pkgdb -u"
       end
 
       new_db_driver = next_driver
