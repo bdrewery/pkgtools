@@ -479,7 +479,31 @@ end
 
 # xsystem
 def __system(options, *args)
-  system(*args) and return true
+  if options[:file]
+    # Simulate script(1) due to it being broken on < 8.1 [fixed in bin/146189]
+    logfile = File.open(options[:file], 'a')
+    cmd = shelljoin(*args)
+    logfile.puts "# #{cmd}"
+    IO.popen(cmd, "r+") do |f|
+      while !f.eof? do
+        begin
+          buf = f.read_nonblock(1024)
+        rescue IO::WaitReadable
+          IO.select([f])
+          retry
+        end
+        logfile.print buf
+        STDOUT.print buf
+        STDOUT.flush
+      end
+    end
+    result = $? == 0
+    logfile.close
+  else
+    result = system(*args)
+  end
+
+  return true if result
 
   if options[:raise_exception_on_failure]
     raise CommandFailedError, format('Command failed [exit code %d]: %s', $? >> 8, shelljoin(*args))
@@ -518,34 +542,26 @@ end
 alias system! sudo
 alias xsystem! xsudo
 
-def logged_command(file, args)
-  if !file  
-    args
-  else
-    ['/usr/bin/script', '-qa', file, *args]
-  end
-end
-
 # script, xscript
-def __script(options, file, *args)
-  __system(options, *logged_command(file, args))
+def __script(options, *args)
+  __system(options, *args)
 end
 def script(file, *args)
-  __script({:raise_exception_on_failure => false}, file, *args)
+  __script({:raise_exception_on_failure => false, :file => file}, *args)
 end
 def xscript(file, *args)
-  __script({:raise_exception_on_failure => true}, file, *args)
+  __script({:raise_exception_on_failure => true, :file => file}, *args)
 end
 
 # script!, xscript!
-def __script!(options, file, *args)
-  __sudo(options, *logged_command(file, args))
+def __script!(options, *args)
+  __sudo(options, *args)
 end
 def script!(file, *args)
-  __script!({:raise_exception_on_failure => false}, file, *args)
+  __script!({:raise_exception_on_failure => false, :file => file}, *args)
 end
 def xscript!(file, *args)
-  __script!({:raise_exception_on_failure => true}, file, *args)
+  __script!({:raise_exception_on_failure => true, :file => file}, *args)
 end
 
 # raises CommandFailedError
