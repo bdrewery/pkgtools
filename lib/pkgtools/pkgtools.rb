@@ -478,21 +478,21 @@ class CommandFailedError < StandardError
 end
 
 # xsystem
-def __system(raise_exception_on_failure, *args)
+def __system(options, *args)
   system(*args) and return true
 
-  if raise_exception_on_failure
+  if options[:raise_exception_on_failure]
     raise CommandFailedError, format('Command failed [exit code %d]: %s', $? >> 8, shelljoin(*args))
   end
 
   false
 end
 def xsystem(*args)
-  __system(true, *args)
+  __system({:raise_exception_on_failure => true}, *args)
 end
 
 # sudo, xsudo
-def __sudo(raise_exception_on_failure, *args)
+def __sudo(options, *args)
   if $sudo && Process.euid != 0
     if $sudo_args.grep(/%s/).empty?
       args = $sudo_args + args
@@ -505,13 +505,13 @@ def __sudo(raise_exception_on_failure, *args)
     progress_message "[Executing a command as root: " + shelljoin(*args) + "]"
   end
 
-  __system(raise_exception_on_failure, *args)
+  __system(options, *args)
 end
 def sudo(*args)
-  __sudo(false, *args)
+  __sudo({:raise_exception_on_failure => false}, *args)
 end
 def xsudo(*args)
-  __sudo(true, *args)
+  __sudo({:raise_exception_on_failure => true}, *args)
 end
 
 # system!, xsystem!
@@ -527,25 +527,25 @@ def logged_command(file, args)
 end
 
 # script, xscript
-def __script(raise_exception_on_failure, file, *args)
-  __system(raise_exception_on_failure, *logged_command(file, args))
+def __script(options, file, *args)
+  __system(options, *logged_command(file, args))
 end
 def script(file, *args)
-  __script(false, file, *args)
+  __script({:raise_exception_on_failure => false}, file, *args)
 end
 def xscript(file, *args)
-  __script(true, file, *args)
+  __script({:raise_exception_on_failure => true}, file, *args)
 end
 
 # script!, xscript!
-def __script!(raise_exception_on_failure, file, *args)
-  __sudo(raise_exception_on_failure, *logged_command(file, args))
+def __script!(options, file, *args)
+  __sudo(options, *logged_command(file, args))
 end
 def script!(file, *args)
-  __script!(false, file, *args)
+  __script!({:raise_exception_on_failure => false}, file, *args)
 end
 def xscript!(file, *args)
-  __script!(true, file, *args)
+  __script!({:raise_exception_on_failure => true}, file, *args)
 end
 
 # raises CommandFailedError
