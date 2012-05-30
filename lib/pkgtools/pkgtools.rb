@@ -478,10 +478,10 @@ class CommandFailedError < StandardError
 end
 
 # xsystem
-def __system(x, *args)
+def __system(raise_exception_on_failure, *args)
   system(*args) and return true
 
-  if x
+  if raise_exception_on_failure
     raise CommandFailedError, format('Command failed [exit code %d]: %s', $? >> 8, shelljoin(*args))
   end
 
@@ -492,7 +492,7 @@ def xsystem(*args)
 end
 
 # sudo, xsudo
-def __sudo(x, *args)
+def __sudo(raise_exception_on_failure, *args)
   if $sudo && Process.euid != 0
     if $sudo_args.grep(/%s/).empty?
       args = $sudo_args + args
@@ -505,7 +505,7 @@ def __sudo(x, *args)
     progress_message "[Executing a command as root: " + shelljoin(*args) + "]"
   end
 
-  __system(x, *args)
+  __system(raise_exception_on_failure, *args)
 end
 def sudo(*args)
   __sudo(false, *args)
@@ -527,8 +527,8 @@ def logged_command(file, args)
 end
 
 # script, xscript
-def __script(x, file, *args)
-  __system(x, *logged_command(file, args))
+def __script(raise_exception_on_failure, file, *args)
+  __system(raise_exception_on_failure, *logged_command(file, args))
 end
 def script(file, *args)
   __script(false, file, *args)
@@ -538,8 +538,8 @@ def xscript(file, *args)
 end
 
 # script!, xscript!
-def __script!(x, file, *args)
-  __sudo(x, *logged_command(file, args))
+def __script!(raise_exception_on_failure, file, *args)
+  __sudo(raise_exception_on_failure, *logged_command(file, args))
 end
 def script!(file, *args)
   __script!(false, file, *args)
@@ -583,7 +583,7 @@ def unlink_file(file)
 end
 
 # backquote
-def __backquote(x, sudo, *args)
+def __backquote(raise_exception_on_failure, sudo, *args)
   if sudo && Process.euid != 0
     if $sudo_args.grep(/%s/).empty?
       args = $sudo_args + args
@@ -602,7 +602,7 @@ def __backquote(x, sudo, *args)
 
   str = `#{cmdline}` and return str
 
-  if x
+  if raise_exception_on_failure
     raise CommandFailedError, format('Command failed [exit code %d]: %s', $? >> 8, cmdline)
   end
 
