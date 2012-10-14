@@ -381,12 +381,12 @@ class PkgDB
 
     close_db
 
-    prev_sync = STDERR.sync
-    STDERR.sync = true
+    prev_sync = STDOUT.sync
+    STDOUT.sync = true
 
     rebuild = force || !File.exist?(@db_file)
 
-    STDERR.printf '[%s the pkgdb <format:%s> in %s ... ',
+    STDOUT.printf '[%s the pkgdb <format:%s> in %s ... ',
       rebuild ? 'Rebuilding' : 'Updating', @db_driver, db_dir
 
     @installed_pkgs = installed_pkgs!.freeze
@@ -430,17 +430,17 @@ class PkgDB
 	  deleted_pkgs.sort!
 	rescue => e
           raise e if e.class == PkgDB::NeedsPkgNGSupport
-	  STDERR.print "#{e.message}; rebuild needed] "
+	  STDOUT.print "#{e.message}; rebuild needed] "
 	  File.unlink(@db_file)
 	  return update_db(true)
 	end
       end
 
-      STDERR.printf "- %d packages found (-%d +%d) ",
+      STDOUT.printf "- %d packages found (-%d +%d) ",
 	@installed_pkgs.size, deleted_pkgs.size, new_pkgs.size
 
       if @installed_pkgs.size == 0
-	STDERR.puts " nothing to do]"
+	STDOUT.puts " nothing to do]"
 	@db[':mtime'] = Marshal.dump(Time.now)
 	@db[':origins'] = ' '
 	@db[':pkgnames'] = ' '
@@ -450,7 +450,7 @@ class PkgDB
       end
 
       unless deleted_pkgs.empty?
-	STDERR.print '(...)'
+	STDOUT.print '(...)'
 
 	# NOTE: you cannot delete keys while you enumerate the database elements
 	@db.select { |path, pkgs|
@@ -476,11 +476,11 @@ class PkgDB
       new_pkgs.sort { |a, b|
 	date_installed(a) <=> date_installed(b)
       }.each do |pkg|
-	STDERR.putc ?.
+	STDOUT.putc ?.
 
 	n+=1
 	if n % 100 == 0
-	  STDERR.print n
+	  STDOUT.print n
 	end
 
 	begin
@@ -503,7 +503,7 @@ class PkgDB
 	  end
 	rescue => e
           raise e if e.class == NeedsPkgNGSupport
-	  STDERR.puts "", e.message + ": skipping..."
+	  STDOUT.puts "", e.message + ": skipping..."
 	  next
 	end
       end
@@ -516,7 +516,7 @@ class PkgDB
       @db[':pkgnames'] = @installed_pkgs.join(' ')
       @db[':db_version'] = Marshal.dump(DB_VERSION)
 
-      STDERR.puts " done]"
+      STDOUT.puts " done]"
 
       mark_fixme
 
@@ -525,7 +525,7 @@ class PkgDB
       raise e if e.class == NeedsPkgNGSupport
       if File.exist?(@db_file)
 	begin
-	  STDERR.puts " error] Remove and try again."
+	  STDOUT.puts " error] Remove and try again."
 	  File.unlink(@db_file)
 	  try_again = true
 	rescue => e
