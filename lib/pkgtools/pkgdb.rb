@@ -148,8 +148,8 @@ class PkgDB
   end
 
   def initialize(*args)
-    return if with_pkgng?
     @db = nil
+    return if with_pkgng?
     @lock_file = Process.euid == 0 ? LOCK_FILE : nil
     @db_version = DB_VERSION
     ObjectSpace.define_finalizer(self, PkgDB.finalizer)
@@ -251,11 +251,6 @@ class PkgDB
   alias [] pkg
 
   def origin(pkgname)
-    if with_pkgng?
-      pkg = PkgInfo.new(pkgname)
-      return pkg.get_info(:origin)
-    end
-
     open_db
 
     @db['?' + pkgname]
@@ -267,7 +262,6 @@ class PkgDB
   def add_origin(pkgname, origin)
     @installed_ports << origin
 
-    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db['?' + pkgname] = origin
 
     o_key = '?' + origin
@@ -288,7 +282,6 @@ class PkgDB
   def delete_origin(pkgname)
     p_key = '?' + pkgname
 
-    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     origin = @db[p_key] or
       begin
 	STDERR.print "(? #{pkgname})"
@@ -330,9 +323,10 @@ class PkgDB
     @installed_ports.uniq!
     @installed_ports.sort!
 
-    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db[':mtime'] = Marshal.dump(Time.now)
     @db[':origins'] = @installed_ports.join(' ')
+
+    return true if with_pkgng?
 
     close_db
   rescue => e
@@ -341,11 +335,6 @@ class PkgDB
   end
 
   def deorigin(origin)
-
-    if with_pkgng?
-      pkgname = xbackquote(PkgDB::command(:pkg), 'query', '%n-%v', origin).chomp
-      return pkgname.length ? [pkgname] : nil
-    end
 
     open_db
 
@@ -362,11 +351,6 @@ class PkgDB
   def deorigin_glob(pattern)
     if pattern.is_a?(String) && /[*?\[]/ !~ pattern
       return deorigin(pattern)
-    end
-
-    if with_pkgng?
-      pkgnames = xbackquote(PkgDB::command(:pkg), 'query', '-g', '%n-%v', pattern).chomp
-      return pkgnames.empty? ? nil : pkgnames
     end
 
     open_db
@@ -635,11 +619,6 @@ class PkgDB
 
     open_db
 
-    if with_pkgng?
-      pkgname = xbackquote(PkgDB::command(:pkg), 'which', '-q', path).chomp
-      return pkgname.length ? [pkgname] : nil
-    end
-
     if !@db.key?(path)
       nil
     else
@@ -791,14 +770,6 @@ class PkgDB
   end
 
   def installed_pkgs()
-    if @installed_pkgs.nil?
-      if with_pkgng?
-        @installed_pkgs = installed_pkgs!
-      else
-        open_db
-      end
-    end
-
     @installed_pkgs
   end
 
