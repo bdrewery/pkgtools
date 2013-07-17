@@ -251,9 +251,13 @@ class PkgDB
   alias [] pkg
 
   def origin(pkgname)
+    if with_pkgng?
+      pkg = PkgInfo.new(pkgname)
+      return pkg.get_info(:origin)
+    end
+
     open_db
 
-    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db['?' + pkgname]
   rescue => e
     raise e if e.class == PkgDB::NeedsPkgNGSupport
@@ -337,9 +341,14 @@ class PkgDB
   end
 
   def deorigin(origin)
+
+    if with_pkgng?
+      pkgname = xbackquote(PkgDB::command(:pkg), 'query', '%n-%v', origin).chomp
+      return pkgname.length ? [pkgname] : nil
+    end
+
     open_db
 
-    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     if str = @db['?' + origin]
       str.split
     else
@@ -355,10 +364,14 @@ class PkgDB
       return deorigin(pattern)
     end
 
+    if with_pkgng?
+      pkgnames = xbackquote(PkgDB::command(:pkg), 'query', '-g', '%n-%v', pattern).chomp
+      return pkgnames.empty? ? nil : pkgnames
+    end
+
     open_db
 
     ret = []
-    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db.each_key do |key|
       /^\?(.*)/ =~ key or next
 
@@ -778,7 +791,13 @@ class PkgDB
   end
 
   def installed_pkgs()
-    open_db if @installed_pkgs.nil?
+    if @installed_pkgs.nil?
+      if with_pkgng?
+        @installed_pkgs = installed_pkgs!
+      else
+        open_db
+      end
+    end
 
     @installed_pkgs
   end
