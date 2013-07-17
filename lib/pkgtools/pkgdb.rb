@@ -148,6 +148,7 @@ class PkgDB
   end
 
   def initialize(*args)
+    return if with_pkgng?
     @db = nil
     @lock_file = Process.euid == 0 ? LOCK_FILE : nil
     @db_version = DB_VERSION
@@ -252,6 +253,7 @@ class PkgDB
   def origin(pkgname)
     open_db
 
+    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db['?' + pkgname]
   rescue => e
     raise e if e.class == PkgDB::NeedsPkgNGSupport
@@ -261,6 +263,7 @@ class PkgDB
   def add_origin(pkgname, origin)
     @installed_ports << origin
 
+    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db['?' + pkgname] = origin
 
     o_key = '?' + origin
@@ -281,6 +284,7 @@ class PkgDB
   def delete_origin(pkgname)
     p_key = '?' + pkgname
 
+    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     origin = @db[p_key] or
       begin
 	STDERR.print "(? #{pkgname})"
@@ -322,6 +326,7 @@ class PkgDB
     @installed_ports.uniq!
     @installed_ports.sort!
 
+    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db[':mtime'] = Marshal.dump(Time.now)
     @db[':origins'] = @installed_ports.join(' ')
 
@@ -334,6 +339,7 @@ class PkgDB
   def deorigin(origin)
     open_db
 
+    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     if str = @db['?' + origin]
       str.split
     else
@@ -352,6 +358,7 @@ class PkgDB
     open_db
 
     ret = []
+    raise NeedsPkgNGSupport, "PKGNG support needed #{__FILE__}:#{__LINE__}" if with_pkgng?
     @db.each_key do |key|
       /^\?(.*)/ =~ key or next
 
@@ -398,6 +405,7 @@ class PkgDB
   end
 
   def update_db(force = false)
+    return if with_pkgng?
     if !force
       up_to_date? and return false
     end
@@ -568,6 +576,7 @@ class PkgDB
   end
 
   def open_db
+    return if with_pkgng?
     @db and return @db
 
     check_db
@@ -612,6 +621,8 @@ class PkgDB
     path = File.expand_path(path)
 
     open_db
+
+    raise NeedsPkgNGSupport, "PKGNG support needed: #{__FILE__}:#{__LINE__}" if with_pkgng?
 
     if !@db.key?(path)
       nil
