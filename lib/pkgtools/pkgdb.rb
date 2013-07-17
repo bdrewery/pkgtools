@@ -622,7 +622,10 @@ class PkgDB
 
     open_db
 
-    raise NeedsPkgNGSupport, "PKGNG support needed: #{__FILE__}:#{__LINE__}" if with_pkgng?
+    if with_pkgng?
+      pkgname = xbackquote(PkgDB::command(:pkg), 'which', '-q', path).chomp
+      return pkgname.length ? [pkgname] : nil
+    end
 
     if !@db.key?(path)
       nil
